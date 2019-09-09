@@ -1,0 +1,8 @@
+*.db
+*.db.sqbpro
+invitation_link.json
+slack_token.json
+credentials_gmail.json
+credentials_google_docs.json
+.idea
+venv
