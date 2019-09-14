@@ -1,12 +1,13 @@
 from slackeventsapi import SlackEventAdapter
 from slack import WebClient
+from slack import errors
 import json
 import smtplib, ssl
 import html
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from shecodes_user_manager.db_manager import DbManager
+from server import main
 
 GMAIL_ADDRESS = "smtp.gmail.com"
 
@@ -25,16 +26,22 @@ class SlackApiHelper(object):
         self.slack_client_for_user = WebClient(userToken)
 
     def get_channel_user_to_add(self):
-        new_user_mail = "maximus.raskin@gmail.com"
-        channel_to_add = "tests"
-        return new_user_mail, channel_to_add
+        self._new_user_mails = ["maximus.raskin@gmail.com", "maya.mnkr@gmail.com", "hadasstr@gmail.com"]
+        self._channel_to_add = "tests"
 
-    def get_mail_to_user(self, add_user):
-        value_return_from_api = self.slack_client.api_call("users.lookupByEmail", params={'email': add_user})
-        user_name_retrieve = value_return_from_api["user"]["id"]
-        return user_name_retrieve
+    def get_mail_to_user(self):
+        self.user_names_to_handle = {}
+        for user_mail in self._new_user_mails:
+            try:
+                value_return_from_api = self.slack_client.api_call("users.lookupByEmail", params={'email': user_mail})
+                user_name_retrieve = value_return_from_api["user"]["id"]
+                self.user_names_to_handle[user_mail] = user_name_retrieve
+            except errors.SlackApiError as e:
+                if (e.response['error'] == "users_not_found"):
+                    print("The following mail isn't a member in the workspace:" + user_mail)
+        print(self.user_names_to_handle)
 
-    def get_channel_id(self, channel_to_add):
+    def _get_channel_id(self, channel_to_add):
         '''
 
         :param channel_to_add = The channel name to add the new user:
@@ -51,14 +58,14 @@ class SlackApiHelper(object):
                 break
         return channel_id
 
-    def adding_member_to_channel(self):
-        @self._slack_events_adapter.on("member_joined_channel")
-        def new_user_in_default_channel(event_data):
-            add_user, channel_to_add = self.get_channel_user_to_add()
-            user_name = self.get_mail_to_user(add_user)
+    # def adding_member_to_channel(self):
+    # @self._slack_events_adapter.on("member_joined_channel")
+    # def new_user_in_default_channel(event_data):
+    # add_user, channel_to_add = self.get_channel_user_to_add()
+    # self.get_mail_to_user()
 
-            channel_id = self.get_channel_id(channel_to_add)
-            self.slack_client_for_user.api_call("channels.invite", params={"channel": channel_id, "user": user_name})
+    # channel_id = self._get_channel_id(channel_to_add)
+    # self.slack_client_for_user.api_call("channels.invite", params={"channel": channel_id, "user": user_name})
 
     def start_server(self):
         self._slack_events_adapter.start(port=3000, debug=True)
@@ -73,11 +80,11 @@ class WorkspaceInvitation(object):
 
     def send_invitation_mail(self):
         # Create a secure SSL context
-        with smtplib.SMTP_SSL(GMAIL_ADDRESS, self.port, context=self.context) as self.server:
-            self.server.login(self.invitation_links["source_mail"], self.invitation_links["pass"])
-            self._send_mail()
+        with smtplib.SMTP_SSL(GMAIL_ADDRESS, self.port, context=self.context) as self._server:
+            self._server.login(self.invitation_links["source_mail"], self.invitation_links["pass"])
+            self._build_mail_context()
 
-    def _send_mail(self):
+    def _build_mail_context(self):
         # Create message container - the correct MIME type is multipart/alternative.
         msg = MIMEMultipart('alternative')
         msg['Subject'] = "She-codes slack workspace invitation link"
@@ -105,22 +112,7 @@ class WorkspaceInvitation(object):
         msg.attach(part1)
         msg.attach(part2)
 
-        self.server.sendmail(self.invitation_links["source_mail"], self.invitation_links["destination_mail"], msg.as_string())
+        self._server.sendmail(self.invitation_links["source_mail"], self.invitation_links["destination_mail"],
+                              msg.as_string())
 
 
-def main():
-    with open("slack_token.json", "rb") as fp:
-        my_tokens = json.load(fp)
-    slack_invitation_mail = WorkspaceInvitation()
-    slack_invitation_mail.send_invitation_mail()
-    slack_api_helper = SlackApiHelper(my_tokens["slack_signing_secret"], my_tokens["slack_bot_token"],
-                                      my_tokens["slack_user_token"])
-    # Once we have our event listeners configured, we can start the
-    # Flask server with the default `/events` endpoint on port 3000
-    db_manager = DbManager("shecodes_account_manager_db.db")
-    db_manager.volunteer_to_handle()
-
-    slack_api_helper.start_server()
-
-
-main()
