@@ -2,6 +2,7 @@ from shecodes_user_manager.db_manager import DbManager
 from shecodes_user_manager.db_manager import Volunteer
 from shecodes_user_manager.slack_api_helper import SlackApiHelper
 from shecodes_user_manager.slack_api_helper import WorkspaceInvitation
+from shecodes_user_manager.polling_ui_mutex import PollingUiMutex
 import json
 
 
@@ -54,23 +55,25 @@ class UI(object):
         choices_to_functions = {'1': self.insert_new_volunteer}
         print(choices)
         self._choice = '1'# input('Insert choice number:')
-        commit_result = choices_to_functions[self._choice]()
-        if commit_result:
-            print(choices[self._choice] + " succeed")
-            self.volunteer_id_update_or_inserted = self._db_manager.get_volunteer_data_id()
-            mail_in_workspace_respond = self.is_user_registered_to_slack_workspace(self._mail, self.volunteer_id_update_or_inserted)
-            if mail_in_workspace_respond:
-                self.add_user_to_channels()
+        self.polling_ui_mutex = PollingUiMutex("UI")
+        with self.polling_ui_mutex:
+            commit_result = choices_to_functions[self._choice]()
+            if commit_result:
+                print(choices[self._choice] + " succeed")
+                self.volunteer_id_update_or_inserted = self._db_manager.get_volunteer_data_id()
+                mail_in_workspace_respond = self.is_user_registered_to_slack_workspace(self._mail, self.volunteer_id_update_or_inserted)
+                if mail_in_workspace_respond:
+                    self.add_user_to_channels()
+                else:
+                    print("Sending invitation...")
+                    workspace_invitation = WorkspaceInvitation(self._mail)
+                    workspace_invitation.send_invitation_mail()
+                    self._db_manager.insert_new_volunteer_to_slack_user_polling_table(self.volunteer_id_update_or_inserted)
+                    print('add in topic to sub queue for not in workspace')
+                    '''send mail'''
+                    '''add in topic to sub queue for not in workspace '''
             else:
-                print("Sending invitation...")
-                workspace_invitation = WorkspaceInvitation(self._mail)
-                workspace_invitation.send_invitation_mail()
-                self._db_manager.insert_new_volunteer_to_slack_user_polling_table(self.volunteer_id_update_or_inserted)
-                print('add in topic to sub queue for not in workspace')
-                '''send mail'''
-                '''add in topic to sub queue for not in workspace '''
-        else:
-            print(choices[self._choice] + " failed - volunteer id is already in system")
+                print(choices[self._choice] + " failed - volunteer id is already in system")
 
 
 def main():

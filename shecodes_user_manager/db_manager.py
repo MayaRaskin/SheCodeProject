@@ -119,15 +119,43 @@ class DbManager(object):
             cur = self.conn.cursor()
             sql = 'Insert INTO SlackPollingStatus(volunteer_data_id, status, create_date) VALUES(?,?,CURRENT_TIMESTAMP)'
             cur.execute(sql, [volunteer_data_id, "NOT_IN_WORKSPACE"])
+        self.close_db()
 
-    def get_slack_user_status(self):
+    def get_volunteer_to_check_new_status_on_slack(self):
+        '''
+        retrieve mail list of all volunteer which currently note as "NOT_IN_WORKSPACE"
+        :return: list of volunteers mails.
+        '''
         if self.conn is None:
             self.conn = sqlite3.connect(self._path_db)
         cur = self.conn.cursor()
-        sql = 'SELECT volunteer_data_id FROM SlackPollingStatus WHERE (status = ?)'
-        cur.execute(sql, ("IN_WORKSPACE",))
+        sql = 'SELECT SlackPollingStatus.volunteer_data_id,mail FROM SlackPollingStatus' \
+              ' INNER JOIN VolunteerData ON VolunteerData.volunteer_data_id = SlackPollingStatus.volunteer_data_id' \
+              ' WHERE (status = ?)'
+        cur.execute(sql, ("NOT_IN_WORKSPACE",))
         db_result = cur.fetchall()
-        return db_result[0][0]
+        volunteer_mail_check_status_list = [mail[1] for mail in db_result]
+        volunteer_id_check_status_list = [volunteer[0] for volunteer in db_result]
+        self.close_db()
+        return volunteer_mail_check_status_list, volunteer_id_check_status_list
+
+    def update_slack_user_status(self, volunteer_data_id_list, status):
+        '''
+        :param volunteer_data_id_list: list of volunteer which their status needed to be changed
+        :param status: The status message to update
+        '''
+        for volunteer_data_id in volunteer_data_id_list:
+            try:
+                if self.conn is None:
+                    self.conn = sqlite3.connect(self._path_db)
+                cur = self.conn.cursor()
+                sql = """UPDATE SlackPollingStatus SET status = ? WHERE volunteer_data_id = ?"""
+                cur.execute(sql, (status, volunteer_data_id))
+                self.conn.commit()
+            # except sqlite3.Error as error:
+            #     print("failed to update SlackPollingStatus table")
+            finally:
+                self.close_db()
 
     def get_location_id(self, values_list):
         cur = self.conn.cursor()

@@ -14,6 +14,13 @@ GMAIL_ADDRESS = "smtp.gmail.com"
 
 class SlackApiHelper(object):
     _slack_events_adapter: SlackEventAdapter
+    @staticmethod
+    def create():
+        with open("shecodes_user_manager/slack_token.json", "rb") as fp:
+            my_tokens = json.load(fp)
+        slack_api_helper = SlackApiHelper(my_tokens["slack_signing_secret"], my_tokens["slack_bot_token"],
+                                          my_tokens["slack_user_token"])
+        return slack_api_helper
 
     def __init__(self, signingSecret, botToken, userToken):
         # Our app's Slack Event Adapter for receiving actions via the Events API
@@ -24,6 +31,7 @@ class SlackApiHelper(object):
 
         # Create a WebClient for user only Web API requests
         self.slack_client_for_user = WebClient(userToken)
+
 
     def is_mail_in_workspace(self, mail, volunteer_id):
         try:
@@ -69,7 +77,8 @@ class SlackApiHelper(object):
         for channel in slack_channels_for_volunteer:
             try:
                 channel_id = self._get_channel_id(channel)
-                self.slack_client_for_user.api_call("channels.invite", params={"channel": channel_id, "user": self.user_name_retrieve})
+                self.slack_client_for_user.api_call("channels.invite",
+                                                    params={"channel": channel_id, "user": self.user_name_retrieve})
                 print("User:" + self.user_name_retrieve + "added to channel" + channel)
             except errors.SlackApiError as e:
                 if e.response['error'] == "already_in_channel":
@@ -124,5 +133,3 @@ class WorkspaceInvitation(object):
 
         self._server.sendmail(self.invitation_links["source_mail"], self.invitation_links["destination_mail"],
                               msg.as_string())
-
-
