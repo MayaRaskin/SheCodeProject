@@ -95,13 +95,24 @@ class DbManager(object):
                   'WHERE (volunteer_data_id = ?)'
             cur.execute(sql, (volunteer_data_id_add,))
             db_result = cur.fetchall()
-        # volunter_list = []
-        # for row in db_result:
-        #     volunteers_list.append(
-        #         Volunteer(mail=row[0], first_name=row[1], last_name=row[2], area=row[1], district=row[2], branch=row[3],
-        #                   role=row[4],
-        #                   handled=row[5], channel=row[7]))
+
         return [channel[0] for channel in db_result]
+
+    def get_current_location_id(self, volunteer_data_id_to_update):
+        with self.conn:
+            cur = self.conn.cursor()
+            sql = 'SELECT location_id FROM LocationAndRoleOfVolunteer WHERE (volunteer_data_id = ?)'
+            cur.execute(sql, (volunteer_data_id_to_update,))
+            db_result = cur.fetchall()
+        return db_result[0][0]
+
+    def get_current_role_id(self, volunteer_data_id_to_update):
+        with self.conn:
+            cur = self.conn.cursor()
+            sql = 'SELECT role_id FROM LocationAndRoleOfVolunteer WHERE (volunteer_data_id = ?)'
+            cur.execute(sql, (volunteer_data_id_to_update,))
+            db_result = cur.fetchall()
+        return db_result[0][0]
 
     def role_to_role_id(self, role):
         cur = self.conn.cursor()
@@ -140,6 +151,50 @@ class DbManager(object):
         volunteer_id_check_status_list = [volunteer[0] for volunteer in db_result]
         return volunteer_mail_check_status_list, volunteer_id_check_status_list
 
+    def update_volunteer_data(self, volunteer: Volunteer):
+        values_to_get = ["volunteer_id", "first_name", "last_name", "mail"]
+        if (len(volunteer.volunteer_id) > 0) and (len(volunteer.first_name) > 0) and (len(volunteer.last_name) > 0):
+            if volunteer.mail != "0":
+                self.update_volunteer_mail(volunteer)
+                logging_manager.logger.info(f'mail updated successfully to {volunteer.mail}')
+            volunteer_data_id_to_update = self.get_volunteer_data_id_to_update(volunteer.volunteer_id)
+            try:
+                with self.conn:
+                    role_id_cur = 0
+                    cur = self.conn.cursor()
+                    # volunteer_id_cur = volunteer.get_my_values(['VolunteerDataId'])['VolunteerDataId']
+                    location_id_cur = self.get_current_location_id(volunteer_data_id_to_update)
+                    location_id_new = self.new_location_id_to_update(location_id_cur, volunteer.get_my_values(['area', 'district', 'branch']))
+                    if location_id_cur != location_id_new:
+                        location_to_update = location_id_new
+                    else:
+                        location_to_update = location_id_cur
+                    if volunteer.role != '0':
+                        role_id_cur = self.role_to_role_id(volunteer.role)
+                    if (location_id_cur != location_id_new) or (role_id_cur != 0):
+                        sql1 = 'UPDATE LocationAndRoleOfVolunteer SET location_id = ?, role_id = ?, ' \
+                               'modified_date = CURRENT_TIMESTAMP WHERE volunteer_data_id = ?'
+                        cur.execute(sql1, (location_to_update, role_id_cur, volunteer_data_id_to_update))
+                    else:
+                        logging_manager.logger.info('no updates preformed in location nor role')
+                return True
+            except sqlite3.IntegrityError:
+                logging_manager.logger.error(
+                    "Some error occurred can't update location_and_role_of_volunteer table")
+                return False
+
+    def update_volunteer_mail(self, volunteer):
+        try:
+            with self.conn:
+                cur = self.conn.cursor()
+                values_to_get = ["volunteer_id", "mail", "first_name", "last_name"]
+                sql = """UPDATE VolunteerData SET mail = ?, modified_date = CURRENT_TIMESTAMP WHERE volunteer_id = ? AND first_name = ? AND last_name = ?"""
+                values_as_dict = volunteer.get_my_values(values_to_get)
+                cur.execute(sql, (values_as_dict["mail"], values_as_dict["volunteer_id"], values_as_dict["first_name"], values_as_dict["last_name"]))
+        except sqlite3.IntegrityError:
+            logging_manager.logger.error("Can not update table volunteer_id + first&last name doesn't exist on DB")
+
+
     def update_slack_user_status(self, volunteer_data_id_list, status):
         '''
         :param volunteer_data_id_list: list of volunteer which their status needed to be changed
@@ -163,15 +218,46 @@ class DbManager(object):
 
             db_result = cur.fetchall()
             if len(db_result) == 0:
-                raise DbManagerException("no such location - check details")
+                raise DbManagerException(f"no such location - value_list = {values_list}")
 
         return db_result[0][0]
+
+    def new_location_id_to_update(self, location_id_curr, value_list):
+        with self.conn:
+            cur = self.conn.cursor()
+            sql = 'SELECT area, district, branch FROM Location WHERE location_id = ?'
+            cur.execute(sql, (location_id_curr,))
+            db_result = cur.fetchall()
+            new_value_list = {}
+            cur_area, cur_district, cur_branch = db_result[0][0], db_result[0][1], db_result[0][2]
+            if value_list['area'] != '0' and value_list['area'] != cur_area:
+                new_value_list['area'] = value_list['area']
+            else:
+                new_value_list['area'] = cur_area
+            if value_list['district'] != '0' and value_list['district'] != cur_district:
+                new_value_list['district'] = value_list['district']
+            else:
+                new_value_list['district'] = cur_district
+            if value_list['branch'] != '0' and value_list['branch'] != cur_branch:
+                new_value_list['branch'] = value_list['branch']
+            else:
+                new_value_list['branch'] = cur_branch
+        return self.get_location_id(new_value_list)
+
 
     def get_volunteer_data_id(self):
         with self.conn:
             cur = self.conn.cursor()
             cur.execute('SELECT volunteer_data_id FROM VolunteerData WHERE volunteer_data_id = (SELECT MAX(volunteer_data_id) '
                         'FROM VolunteerData)')
+            db_result = cur.fetchall()
+        return db_result[0][0]
+
+    def get_volunteer_data_id_to_update(self, volunteer_id):
+        with self.conn:
+            cur = self.conn.cursor()
+            sql = f'SELECT volunteer_data_id FROM VolunteerData WHERE volunteer_id = {volunteer_id}'
+            cur.execute(sql)
             db_result = cur.fetchall()
         return db_result[0][0]
 
@@ -195,13 +281,10 @@ class DbManager(object):
                 # volunteer_id_cur = volunteer.get_my_values(['VolunteerDataId'])['VolunteerDataId']
                 location_id_cur = self.get_location_id(volunteer.get_my_values(['area', 'district', 'branch']))
                 role_id_cur = self.role_to_role_id(volunteer.get_my_values(['role'])['role'])
-                sql1 = 'Insert INTO LocationAndRoleOfVolunteer(volunteer_data_id, location_id, role_id) VALUES(?,?,?)'
+                sql1 = 'Insert INTO LocationAndRoleOfVolunteer(volunteer_data_id, location_id, role_id, create_date) VALUES(?,?,?,CURRENT_TIMESTAMP)'
                 cur.execute(sql1, [self._last_volunteer_id_add, location_id_cur, role_id_cur])
             return True
         except sqlite3.IntegrityError:
             logging_manager.logger.error('can not update table location_and_role_of_volunteer - volunteer id is already in db')
             return False
 
-    # def update_volunteer(self, volunteer: Volunteer):
-    #     try:
-    #         with self.conn:
