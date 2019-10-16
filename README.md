@@ -22,7 +22,7 @@ __Link added to email via the invitation_link.json file. The link can be used by
 ## Architecture description:
 __ERD__  
 
-![ERD](/images/She codes volunteer account manager.png)
+![ERD](/images/She_codes_volunteer_account_manager.png)
 
 __High level architecture__  
 
