@@ -1,4 +1,4 @@
-# Final project: She codes volunteers user management of slack channels
+# Final project: She Codes Volunteers Slack Channels Management 
 
 ## Introduction:
 
