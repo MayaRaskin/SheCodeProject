@@ -30,5 +30,5 @@ __High level architecture__
 
 __classes - class diagram__  
 
-![classes - class diagram](/images/classes_class diagram.png)
+![classes - class diagram](/images/classes_class_diagram.png)
 
