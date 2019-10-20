@@ -40,3 +40,13 @@ class TestDbManager:
             sandy_the_dog = Volunteer(42, "sandy@ear.com", "Sandy", "Raskin", "haifa", "north", "technion", "Doctor")
             with pytest.raises(DbManagerException):
                 self.manager.insert_volunteer(sandy_the_dog)
+
+    def test_view_volunteer_data(self):
+        with self.manager:
+            sandy_the_dog = Volunteer(24, "0", "0", "0", "0", "0", "0", "0")
+            view_data_dict = self.manager.view_volunteer_data(sandy_the_dog)
+            for key in view_data_dict:
+                if (type(view_data_dict[key]) == int):
+                    assert (view_data_dict[key] != 0)
+                else:
+                    assert (len(view_data_dict[key]) > 0)

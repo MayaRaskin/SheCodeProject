@@ -21,11 +21,14 @@ class SlackApiHelper(object):
     _slack_events_adapter: SlackEventAdapter
 
     @staticmethod
-    def create():
-        with open("shecodes_user_manager/slack_token.json", "rb") as fp:
-            my_tokens = json.load(fp)
-        slack_api_helper = SlackApiHelper(my_tokens["slack_signing_secret"],
-                                          my_tokens["slack_user_token"])
+    def create(signingSecret=None, userToken=None):
+        if signingSecret is None or userToken is None:
+            with open("shecodes_user_manager/slack_token.json", "rb") as fp:
+                my_tokens = json.load(fp)
+            slack_api_helper = SlackApiHelper(my_tokens["slack_signing_secret"],
+                                              my_tokens["slack_user_token"])
+        else:
+            slack_api_helper = SlackApiHelper(signingSecret, userToken)
         return slack_api_helper
 
     def __init__(self, signingSecret, userToken):
@@ -91,10 +94,13 @@ class SlackApiHelper(object):
 
 
 class WorkspaceInvitation(object):
-    def __init__(self, mail):
+    def __init__(self, mail, invite_path=None):
         self.context = ssl.create_default_context()
         self.port = 465  # For SSL
-        self._path_to_invitation_link = os.path.join(os.path.dirname(os.path.abspath(__file__)), "invitation_link.json")
+        if invite_path is None:
+            self._path_to_invitation_link = os.path.join(os.path.dirname(os.path.abspath(__file__)), "invitation_link.json")
+        else:
+            self._path_to_invitation_link = os.path.join(os.path.dirname(invite_path))
         with open(self._path_to_invitation_link, "rb") as fp:
             self.invitation_links = json.load(fp)
         self._user_mail = mail

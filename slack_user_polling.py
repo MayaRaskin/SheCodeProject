@@ -17,7 +17,7 @@ def polling_check_data(manager, slack_api_helper):
 def main():
     manager = DbManager()
     slack_api_helper = SlackApiHelper.create()
-    logging_manager.init_logger("Polling")
+    logging_manager.init_logger("she_codes_Polling.log")
     while True:
         polling_ui_mutex = PollingUiMutex("polling")
         with polling_ui_mutex:
