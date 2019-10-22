@@ -5,6 +5,21 @@
 Today the volunteer group is managed by notes on google drive and the permission for the variety systems of She Codes organization (Facebook, Slack, Connect, Google Drive, WIKI etc.) are given manually.
 The goal of this project is to automate this process. Due to time constraints, the project focused on creating database scheme and the ability to add volunteers automatically to channels on Slack application. The design of this project is such that it can be extended to make use of other API integrations.
 
+## Prerequisites:
+- Python 3.7.x
+- Slack tokens: slack_signing_secret and slack_user_token
+- email addderss and google app password which will be used for sending invitations
+
+## Setup instructions:
+1) Create a virtual environment (venv). Instruction on the following link: https://docs.python.org/3/library/venv.html
+2) install dependencies using: pip3 -r requirements.txt
+3) Run setup.py
+4) Run ui.py to add/update/view a volunteers
+5) Run slack_user_polling.py in background. This service should be left running in the background. It polls
+for new volunteer additions/updates which currently are not in the Slack workspace. For each newly added volunteer which are not in the workspace an invitation to Slack will be sent by mail. If the volunteer has accepted the invitation then he will be automaticaly added
+to the relevant slack channels according to their role.
+
+
 ## Use case:
 
 User can add to the program's database a new volunteer. The role of volunteer must be supplied.
