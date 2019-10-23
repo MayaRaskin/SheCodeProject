@@ -2,9 +2,15 @@ import pytest
 import shutil
 import os
 from shecodes_user_manager.db_manager import DbManager, Volunteer, DbManagerException
+from shecodes_user_manager.logging_manager import init_logger
+import sqlite3
 
 
 class TestDbManager:
+
+    @classmethod
+    def setup_class(cls):
+        init_logger("test_db_manager.log")
 
     def setup_method(self, test_method):
         original_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "shecodes_user_manager",
@@ -31,15 +37,22 @@ class TestDbManager:
 
     def test_insert_volunteer_illegal_location(self):
         with self.manager:
-            sandy_the_dog = Volunteer(42, "sandy@ear.com", "Sandy", "Raskin", "North", "Harish", "Smokey", "Doctor")
-            with pytest.raises(DbManagerException):
-                self.manager.insert_volunteer(sandy_the_dog)
+            sandy_the_dog = Volunteer(42, "sandy@ear.com", "Sandy", "Raskin", "North", "Harish", "Smokey", "district_manager")
+            result = self.manager.insert_volunteer(sandy_the_dog)
+            assert not result
 
     def test_insert_volunteer_illegal_role(self):
         with self.manager:
             sandy_the_dog = Volunteer(42, "sandy@ear.com", "Sandy", "Raskin", "haifa", "north", "technion", "Doctor")
+            result = self.manager.insert_volunteer(sandy_the_dog)
+            assert not result
+
+    def test_entering_exist_volunteer_twice(self):
+        with self.manager:
+            sandy_the_dog = Volunteer(42, "sandy@ear.com", "Sandy", "Raskin", "haifa", "north", "technion", "district_manager")
+            result = self.manager.insert_volunteer(sandy_the_dog)
             with pytest.raises(DbManagerException):
-                self.manager.insert_volunteer(sandy_the_dog)
+                result = self.manager.insert_volunteer(sandy_the_dog)
 
     def test_view_volunteer_data(self):
         with self.manager:
@@ -50,3 +63,9 @@ class TestDbManager:
                     assert (view_data_dict[key] != 0)
                 else:
                     assert (len(view_data_dict[key]) > 0)
+
+    def test_view_not_exist_volunteer_data(self):
+        with self.manager:
+            sandy_the_dog = Volunteer(100, "0", "0", "0", "0", "0", "0", "0")
+            with pytest.raises(DbManagerException):
+                view_data_dict = self.manager.view_volunteer_data(sandy_the_dog)
