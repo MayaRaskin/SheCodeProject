@@ -41,7 +41,7 @@ __ERD__
 
 __High level architecture__  
 
-![High level architecture](/images/SheCodes_user_manager_Diagram.jpg)
+![High level architecture](/images/SheCodes_user_manager_Diagram.png)
 
 __classes - class diagram__  
 
