@@ -4,6 +4,7 @@ import logging.handlers
 import os
 import traceback
 
+
 class LoggerException(Exception):
     pass
 
@@ -18,7 +19,7 @@ def init_logger(log_file_name):
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     file_handler = logging.handlers.RotatingFileHandler(logPath, maxBytes=4 * 1024 * 1024, backupCount=5)
-    formatter_info =  logging.Formatter('%(asctime)s  %(levelname)s - %(message)s')
+    formatter_info = logging.Formatter('%(asctime)s  %(levelname)s - %(message)s')
     file_handler.setFormatter(
         formatter_info)
     console_handler = logging.StreamHandler(stream=sys.stdout)

@@ -22,7 +22,6 @@ class TestSlackUserPolling(object):
         shutil.copy(original_db_path, self.test_db_path)
         self.db_manager = DbManager(self.test_db_path)
 
-
     def teardown_method(self, test_method):
         # self.db_manager.close_db()
         os.unlink(self.test_db_path)
@@ -46,7 +45,6 @@ class TestSlackUserPolling(object):
             self.db_manager.insert_new_volunteer_to_slack_user_polling_table(volunteer_data_id)
             with pytest.raises(DbManagerException):
                 self.db_manager.insert_new_volunteer_to_slack_user_polling_table(volunteer_data_id)
-
 
     def test_SlackPollingStatus_change_status(self):
         with self.db_manager:

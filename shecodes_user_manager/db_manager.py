@@ -9,7 +9,6 @@ class Volunteer(object):
 
     def __init__(self, volunteer_id, mail, first_name, last_name, area, district, branch, role):  # handled, channel):
         """
-
         :rtype: object
         """
         self._volunteer_id = volunteer_id
@@ -84,6 +83,8 @@ class DbManager(object):
         else:
             self._path_db = path
         self.conn = None
+        if not os.path.isfile(self._path_db):
+            self.create_db()
 
     def __enter__(self):
         self.conn = sqlite3.connect(self._path_db)
@@ -94,6 +95,15 @@ class DbManager(object):
         # This commits or rollbacks a transaction depending on whether an exception occurred.
         self.conn.__exit__(exc_type, exc_val, exc_tb)
         self.close_db()
+
+    def create_db(self):
+        with self:
+            sql_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    'she_codes_account_manager_db_v1.db.sql')
+            with open(sql_path, "r") as file_pointer:
+                content = file_pointer.read()
+                cur = self.conn.cursor()
+                cur.executescript(content)
 
     def get_slack_channels_for_volunteer(self, volunteer_data_id_add):
         try:
@@ -131,12 +141,13 @@ class DbManager(object):
             cur.execute(sql, (role,))
             db_result = cur.fetchall()
             if len(db_result) == 0:
-                logging_manager.logger.error(f"no such role - check details{role}")
+                logging_manager.logger.info(f"no such role - check details:{role}")
+                return None
             else:
                 return db_result[0][0]
         except sqlite3.DatabaseError as e:
             logging_manager.logger.exception(e)
-        raise DbManagerException(f"Role id couldn't been retrieved for role:{role}")
+            raise DbManagerException(f"Role id couldn't been retrieved for role:{role}")
 
     def close_db(self):
         if self.conn is not None:
@@ -164,6 +175,32 @@ class DbManager(object):
         except sqlite3.DatabaseError as e:
             logging_manager.logger.exception(e)
             raise DbManagerException("Error in insert volunteer please check log")
+
+    def get_polling_status_counter(self, start_date):
+        try:
+            cur = self.conn.cursor()
+            sql = 'SELECT volunteer_data_id FROM SlackPollingStatus' \
+                  ' WHERE (status = ?) AND (create_date BETWEEN DATETIME(?) AND CURRENT_DATE)'
+            cur.execute(sql, ("NOT_IN_WORKSPACE", start_date,))
+            db_result = cur.fetchall()
+            volunteer_id_check_status_list = [volunteer[0] for volunteer in db_result]
+            return volunteer_id_check_status_list
+        except sqlite3.DatabaseError as e:
+            logging_manager.logger.exception(e)
+            raise DbManagerException("Something went wrong please check logs")
+
+    def get_joined_volunteer_counter(self, start_date):
+        try:
+            cur = self.conn.cursor()
+            sql = 'SELECT volunteer_data_id FROM VolunteerData' \
+                  ' WHERE (create_date BETWEEN DATETIME(?) AND CURRENT_DATE)'
+            cur.execute(sql, (start_date,))
+            db_result = cur.fetchall()
+            volunteer_id_per_time_list = [volunteer[0] for volunteer in db_result]
+            return volunteer_id_per_time_list
+        except sqlite3.DatabaseError as e:
+            logging_manager.logger.exception(e)
+            raise DbManagerException("Something went wrong please check logs")
 
     def get_volunteer_to_check_new_status_on_slack(self):
         '''
@@ -255,7 +292,6 @@ class DbManager(object):
 
     def get_location_id(self, values_list):
         try:
-            with self.get_safe_db_conn():
                 cur = self.conn.cursor()
                 sql = 'SELECT location_id FROM Location WHERE ((area = ?) AND (district = ?) AND (branch = ?))'
 
@@ -263,12 +299,14 @@ class DbManager(object):
 
                 db_result = cur.fetchall()
                 if len(db_result) == 0:
-                    logging_manager.logger.error(f"no such location - value_list = {values_list}")
+                    logging_manager.logger.info(f"no such location - value_list = {values_list}")
+                    return None
                 else:
                     return db_result[0][0]
         except sqlite3.DatabaseError as e:
             logging_manager.logger.exception(e + f" no such location - value_list = {values_list}")
-        return None
+            raise DbManagerException("Something went wrong please check log")
+
 
     def new_location_id_to_update(self, location_id_curr, value_list):
         try:
@@ -316,8 +354,12 @@ class DbManager(object):
             db_result = cur.fetchall()
             if len(db_result) == 0:
                 logging_manager.logger.error(f"no such volunteer id in DB to update: {volunteer_id}")
+                raise DbManagerException(f"no such volunteer id in DB to update: {volunteer_id}")
             else:
                 return db_result[0][0]
+        except sqlite3.OperationalError:
+            logging_manager.logger.exception("incomplete input -  please check log")
+            raise DbManagerException("incomplete input -  please check log")
         except sqlite3.DatabaseError as e:
             logging_manager.logger.exception(e)
             raise DbManagerException("Something went wrong please check log")
@@ -332,6 +374,7 @@ class DbManager(object):
             cur.execute(sql, list(values_as_dict.values()))
         except sqlite3.IntegrityError:
             logging_manager.logger.error('Can not update table volunteer id is already in db')
+            raise DbManagerException("Something went wrong please check log")
         except sqlite3.DatabaseError as e:
             logging_manager.logger.exception("Unexpected DB error")
             raise DbManagerException("Something went wrong please check log")
@@ -349,7 +392,6 @@ class DbManager(object):
             return False
         try:
             cur = self.conn.cursor()
-            # volunteer_id_cur = volunteer.get_my_values(['VolunteerDataId'])['VolunteerDataId']
             location_id_cur = self.get_location_id(volunteer.get_my_values(['area', 'district', 'branch']))
             role_id_cur = self.role_to_role_id(volunteer.get_my_values(['role'])['role'])
             if location_id_cur is None or role_id_cur is None:
@@ -362,23 +404,26 @@ class DbManager(object):
                 'can not update table location_and_role_of_volunteer - volunteer id is already in db')
             return False
         except sqlite3.DatabaseError as e:
-            logging_manager.logger.exception("Unexpected DB error")
+            logging_manager.logger.exception(e)
             raise DbManagerException("Something went wrong please check log")
 
 
     def get_data_from_volunteer_data_table(self, volunteer_data_id):
-        cur = self.conn.cursor()
-        sql = f'SELECT first_name, last_name, mail, create_date, modified_date FROM VolunteerData WHERE volunteer_data_id = ?'
-        cur.execute(sql, (volunteer_data_id,))
-        db_result = cur.fetchall()
-        if len(db_result) == 0:
-            logging_manager.logger.exception(f"no such volunteer id in DB to update: {volunteer_data_id}")
-            raise DbManagerException(f"no such volunteer id in DB to update: {volunteer_data_id}")
-        value_as_dict = {"first_name": db_result[0][0],
-                         "last_name": db_result[0][1],
-                         "mail": db_result[0][2],
-                         "create_date": db_result[0][3],
-                         "modified_date": db_result[0][4]}
+        try:
+            cur = self.conn.cursor()
+            sql = f'SELECT first_name, last_name, mail, create_date, modified_date FROM VolunteerData WHERE volunteer_data_id = ?'
+            cur.execute(sql, (volunteer_data_id,))
+            db_result = cur.fetchall()
+            if len(db_result) == 0:
+                logging_manager.logger.exception(f"no such volunteer id in DB to update: {volunteer_data_id}")
+                raise DbManagerException(f"no such volunteer id in DB to update: {volunteer_data_id}")
+            value_as_dict = {"first_name": db_result[0][0],
+                             "last_name": db_result[0][1],
+                             "mail": db_result[0][2],
+                             "create_date": db_result[0][3],
+                             "modified_date": db_result[0][4]}
+        except sqlite3.OperationalError as e:
+            raise DbManagerException("incomplete input -  please check log")
         return value_as_dict
 
     def view_volunteer_data(self, volunteer: Volunteer):
@@ -387,15 +432,21 @@ class DbManager(object):
             return None
         slack_channel = self.get_slack_channels_for_volunteer(volunteer_data_id)
         volunteer_data_info = self.get_data_from_volunteer_data_table(volunteer_data_id)
-        cur = self.conn.cursor()
-        sql = 'SELECT area, district, branch, role FROM SheCodesRoles ' \
-              'INNER JOIN LocationAndRoleOfVolunteer ON SheCodesRoles.role_id = ' \
-              'LocationAndRoleOfVolunteer.role_id ' \
-              'INNER JOIN Location ON Location.location_id = ' \
-              'LocationAndRoleOfVolunteer.location_id ' \
-              'WHERE (volunteer_data_id = ?)'
-        cur.execute(sql, (volunteer_data_id,))
-        db_result = cur.fetchall()
+        try:
+            cur = self.conn.cursor()
+            sql = 'SELECT area, district, branch, role FROM SheCodesRoles ' \
+                  'INNER JOIN LocationAndRoleOfVolunteer ON SheCodesRoles.role_id = ' \
+                  'LocationAndRoleOfVolunteer.role_id ' \
+                  'INNER JOIN Location ON Location.location_id = ' \
+                  'LocationAndRoleOfVolunteer.location_id ' \
+                  'WHERE (volunteer_data_id = ?)'
+            cur.execute(sql, (volunteer_data_id,))
+            db_result = cur.fetchall()
+            if len(db_result) == 0:
+                logging_manager.logger.exception(f"no such volunteer id in DB to view: {volunteer_data_id}")
+                raise DbManagerException(f"no such volunteer id in DB to view: {volunteer_data_id}")
+        except sqlite3.OperationalError as e:
+            raise DbManagerException("incomplete input -  please check log")
 
         dict_values = {"volunteer id": volunteer.volunteer_id,
                        "email": volunteer_data_info["mail"],

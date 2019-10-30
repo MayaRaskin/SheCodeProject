@@ -8,15 +8,17 @@ import sys
 
 class UI(object):
     def __init__(self):
-        print("To update an exist volunteer - enter volunteer id + first&last name and fill in the desired fields. \n Enter 0 to keep field unchanged")
-        self._volunteer_id = "35" #input("Insert volunteer ID:")
-        self._mail = "maximus.raskin@gmail.com "  #input("Insert mail:")
-        self._first_name = "d"
-        self._last_name = "r"
-        self._area = "haifa" #input("Insert area:")
-        self._district = "north" #input("Insert district:")
-        self._branch = "technion" #input("Insert branch:")
-        self._role = "area_manager" #input("Insert role:")
+        print(
+            '==>To update an exist volunteer - enter volunteer id + first&last name and fill in the desired fields. \n '
+            '(Enter 0 to keep field unchanged). \n ==>in order to view existing volunteer type only volunteer id. \n')
+        self._volunteer_id = input("Insert volunteer ID:")
+        self._mail = input("Insert mail:")
+        self._first_name = input("First name:")
+        self._last_name = input("Last name:")
+        self._area = input("Insert area:")
+        self._district = input("Insert district:")
+        self._branch = input("Insert branch:")
+        self._role = input("Insert role:")
         self._db_manager = DbManager()
         self.slack_api_helper = SlackApiHelper.create()
 
@@ -36,6 +38,20 @@ class UI(object):
         response = self.slack_api_helper.is_mail_in_workspace(mail, volunteer_id)
         return response
 
+    def newly_added_volunteer_to_slack(self, time_period):
+        polling_volunteer_id_list = self._db_manager.get_polling_status_counter(time_period)
+        all_volunteer_id_in_period_list = self._db_manager.get_joined_volunteer_counter(time_period)
+        newly_added_list = []
+        for volunteer_id in all_volunteer_id_in_period_list:
+            counter = 1
+            for polling_volunteer_id in polling_volunteer_id_list:
+                if volunteer_id == polling_volunteer_id:
+                    counter = 0
+                    break
+            if counter == 1:
+                newly_added_list.append(volunteer_id)
+        return newly_added_list
+
     def add_user_to_channels(self):
         self.slack_channels_for_volunteer = self._db_manager.get_slack_channels_for_volunteer(self.volunteer_id_update_or_inserted)
         self.slack_api_helper.adding_member_to_channel(self.slack_channels_for_volunteer)
@@ -44,12 +60,13 @@ class UI(object):
         choices = {'1': 'Insert new volunteer',
                    '2': 'Update volunteer data',
                    '3': 'View volunteer data',
-                   '4': 'Add new location'}
+                   '4': 'Check how many volunteers added to slack in period of time YYYY-MM-DD'}
         choices_to_functions = {'1': self.insert_new_volunteer,
                                 '2': self.update_volunteer_data,
-                                '3': self.view_volunteer_data}
+                                '3': self.view_volunteer_data,
+                                '4': self.newly_added_volunteer_to_slack}
         print(choices)
-        self._choice = '2'# input('Insert choice number:')
+        self._choice = input('Insert choice number:')
         with self._db_manager:
             if self._choice == '3':
                 data_to_view = choices_to_functions[self._choice]()
@@ -58,7 +75,13 @@ class UI(object):
                 else:
                     for item in data_to_view:
                         print("{} :  {}".format(item, data_to_view[item]))
-            else:
+            if self._choice == '4':
+                self._start_time_for_analysis = input(
+                    "For maintenance only use - Insert data to know how many volunteer "
+                    "joined slack in period of time YYYY-MM-DD")
+                data_to_view = choices_to_functions[self._choice](self._start_time_for_analysis)
+                print("How many volunteer joined slack workspace from {} : {}".format(self._start_time_for_analysis, len(data_to_view)))
+            if self._choice != '4' and self._choice != '3':
                 self.polling_ui_mutex = PollingUiMutex("UI")
                 with self.polling_ui_mutex:
                     commit_result = choices_to_functions[self._choice]()

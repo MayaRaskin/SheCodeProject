@@ -18,6 +18,10 @@ class SlackApiHelperException(Exception):
 
 
 class SlackApiHelper(object):
+    '''
+    The class serve as an interface between app and slack. Using slack API, data regarding workspace can be retrieve
+    such as if the volunteers mail exist in workspace, retrieve channels and addition to channels.
+    '''
     _slack_events_adapter: SlackEventAdapter
 
     @staticmethod
@@ -67,27 +71,16 @@ class SlackApiHelper(object):
                 break
         return channel_id
 
-    # def adding_member_to_channel(self):
-    #     self.get_channel_user_to_add()
-    #     self.get_mail_to_user()
-    #     print(self.user_names_to_handle)
-    #
-    # @self._slack_events_adapter.on("member_joined_channel")
-    # def new_user_in_default_channel(event_data):
-    #     self.get_channel_user_to_add()
-    #     self.get_mail_to_user()
-    #     print(self.user_names_to_handle)
-    #
     def adding_member_to_channel(self, slack_channels_for_volunteer):
         for channel in slack_channels_for_volunteer:
             try:
                 channel_id = self._get_channel_id(channel)
                 self.slack_client_for_user.api_call("channels.invite",
                                                     params={"channel": channel_id, "user": self.user_name_retrieve})
-                logging_manager.logger.info("User:" + self.user_name_retrieve + "added to channel" + channel)
+                logging_manager.logger.info("User: " + self.user_name_retrieve + " added to channel " + channel)
             except errors.SlackApiError as e:
                 if e.response['error'] == "already_in_channel":
-                    logging_manager.logger.error("user already in channel:" + channel)
+                    logging_manager.logger.error("user already in channel: " + channel)
 
     def start_server(self):
         self._slack_events_adapter.start(port=3000, debug=True)

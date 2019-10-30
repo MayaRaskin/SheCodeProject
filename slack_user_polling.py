@@ -4,6 +4,7 @@ from shecodes_user_manager.slack_api_helper import SlackApiHelper
 from shecodes_user_manager.polling_ui_mutex import PollingUiMutex
 from shecodes_user_manager import logging_manager
 
+
 def polling_check_data(manager, slack_api_helper):
     with manager:
         mails_to_check, volunteer_data_ids = manager.get_volunteer_to_check_new_status_on_slack()
@@ -12,7 +13,7 @@ def polling_check_data(manager, slack_api_helper):
             if mail_in_workspace_respond:
                 slack_channels_for_volunteer = manager.get_slack_channels_for_volunteer(volunteer_id)
                 slack_api_helper.adding_member_to_channel(slack_channels_for_volunteer)
-                logging_manager.logger.info("volunteer " + volunteer_id + "- " + mail + " added to channels " +
+                logging_manager.logger.info("volunteer " + str(volunteer_id) + "- " + mail + " added to channels " +
                                             str(slack_channels_for_volunteer))
                 manager.update_slack_user_status([volunteer_id], "ADDED_TO_CHANNELS")
 
