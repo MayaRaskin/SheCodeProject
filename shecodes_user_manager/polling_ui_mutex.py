@@ -14,7 +14,7 @@ class PollingUiMutex(object):
                 if self._name in fp.readline().decode("utf-8"):
                     break
             time.sleep(0.1)
-        with open (FILE_NAME, "wb") as fp:
+        with open(FILE_NAME, "wb") as fp:
             fp.write(self._name.encode("utf-8"))
 
     def __exit__(self, exc_type, exc_val, exc_tb):

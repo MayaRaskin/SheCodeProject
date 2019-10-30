@@ -1,11 +1,16 @@
 import slack_user_polling
-from shecodes_user_manager.db_manager import DbManager, Volunteer
+from shecodes_user_manager.db_manager import DbManager, Volunteer, DbManagerException
 import shutil
 import os
 import sqlite3
 import pytest
+from shecodes_user_manager.logging_manager import init_logger
 
 class TestSlackUserPolling(object):
+
+    @classmethod
+    def setup_class(cls):
+        init_logger("test_slack_user_polling.log")
 
     def setup_method(self, test_method):
         original_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "shecodes_user_manager",
@@ -31,7 +36,15 @@ class TestSlackUserPolling(object):
             sql = 'SELECT * FROM SlackPollingStatus'
             cur.execute(sql)
             db_result = cur.fetchall()
+            # below we use -1 for the most recent created volunteer
             assert (db_result[-1][0] == volunteer_data_id)
+
+    def test_entering_exist_user_SlackPollingStatus(self):
+        with self.db_manager:
+            volunteer_data_id = 2
+            self.db_manager.insert_new_volunteer_to_slack_user_polling_table(volunteer_data_id)
+            with pytest.raises(DbManagerException):
+                self.db_manager.insert_new_volunteer_to_slack_user_polling_table(volunteer_data_id)
 
     def test_SlackPollingStatus_change_status(self):
         with self.db_manager:

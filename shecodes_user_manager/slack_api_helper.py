@@ -18,14 +18,21 @@ class SlackApiHelperException(Exception):
 
 
 class SlackApiHelper(object):
+    '''
+    The class serve as an interface between app and slack. Using slack API, data regarding workspace can be retrieve
+    such as if the volunteers mail exist in workspace, retrieve channels and addition to channels.
+    '''
     _slack_events_adapter: SlackEventAdapter
 
     @staticmethod
-    def create():
-        with open("shecodes_user_manager/slack_token.json", "rb") as fp:
-            my_tokens = json.load(fp)
-        slack_api_helper = SlackApiHelper(my_tokens["slack_signing_secret"],
-                                          my_tokens["slack_user_token"])
+    def create(signingSecret=None, userToken=None):
+        if signingSecret is None or userToken is None:
+            with open("shecodes_user_manager/slack_token.json", "rb") as fp:
+                my_tokens = json.load(fp)
+            slack_api_helper = SlackApiHelper(my_tokens["slack_signing_secret"],
+                                              my_tokens["slack_user_token"])
+        else:
+            slack_api_helper = SlackApiHelper(signingSecret, userToken)
         return slack_api_helper
 
     def __init__(self, signingSecret, userToken):
@@ -64,37 +71,29 @@ class SlackApiHelper(object):
                 break
         return channel_id
 
-    # def adding_member_to_channel(self):
-    #     self.get_channel_user_to_add()
-    #     self.get_mail_to_user()
-    #     print(self.user_names_to_handle)
-    #
-    # @self._slack_events_adapter.on("member_joined_channel")
-    # def new_user_in_default_channel(event_data):
-    #     self.get_channel_user_to_add()
-    #     self.get_mail_to_user()
-    #     print(self.user_names_to_handle)
-    #
     def adding_member_to_channel(self, slack_channels_for_volunteer):
         for channel in slack_channels_for_volunteer:
             try:
                 channel_id = self._get_channel_id(channel)
                 self.slack_client_for_user.api_call("channels.invite",
                                                     params={"channel": channel_id, "user": self.user_name_retrieve})
-                logging_manager.logger.info("User:" + self.user_name_retrieve + "added to channel" + channel)
+                logging_manager.logger.info("User: " + self.user_name_retrieve + " added to channel " + channel)
             except errors.SlackApiError as e:
                 if e.response['error'] == "already_in_channel":
-                    logging_manager.logger.error("user already in channel:" + channel)
+                    logging_manager.logger.error("user already in channel: " + channel)
 
     def start_server(self):
         self._slack_events_adapter.start(port=3000, debug=True)
 
 
 class WorkspaceInvitation(object):
-    def __init__(self, mail):
+    def __init__(self, mail, invite_path=None):
         self.context = ssl.create_default_context()
         self.port = 465  # For SSL
-        self._path_to_invitation_link = os.path.join(os.path.dirname(os.path.abspath(__file__)), "invitation_link.json")
+        if invite_path is None:
+            self._path_to_invitation_link = os.path.join(os.path.dirname(os.path.abspath(__file__)), "invitation_link.json")
+        else:
+            self._path_to_invitation_link = os.path.join(os.path.dirname(invite_path))
         with open(self._path_to_invitation_link, "rb") as fp:
             self.invitation_links = json.load(fp)
         self._user_mail = mail
