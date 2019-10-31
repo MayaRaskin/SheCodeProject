@@ -28,8 +28,13 @@ In the background, the following actions are being committed:
 Check if the newly added volunteer email is registered with the she codes slack workspace.
 If new volunteer is already in the workspace, then add user to channels relevant to role.
 Else new volunteer isn’t yet in workspace. Send volunteer an email with a link** with an invitation to slack workspace. In addition,add volunteer to the SlackPollingStatus table so that we can keep track of his registration status.
+
 A polling process is running in background, sampling SlackPollingStatus table, seeking volunteers with status “Not in workspace”.
-For each volunteer with this status: check whether email is registered with the workspace. If status changed, and volunteer joined the workspace, then add to channels according to role entered and update status in the SlackPollingStatus  table to “done”.  
+For each volunteer with this status: check whether email is registered with the workspace. If status changed, and volunteer joined the workspace, then add to channels according to role entered and update status in the SlackPollingStatus  table to “done”.
+
+Both polling process and ui aproaches to the db_manager for service. Read/write of processes to DB must be synchronized to evoid connection failures, thus before each process approaches DB its running polling_ui_mutex which create lock file with the process name.
+As long as this file exist with process name the other processes can't read/write to DB.
+
 __Link added to email via the invitation_link.json file. The link can be used by up to 2000 people. When the users cap of 2000 is exhausted a new link should be generated according to the below example:__
 
 ![From invitation link creation guide of slack](/images/invitation_link.png)
