@@ -32,8 +32,7 @@ Else new volunteer isn’t yet in workspace. Send volunteer an email with a link
 A polling process is running in background, sampling SlackPollingStatus table, seeking volunteers with status “Not in workspace”.
 For each volunteer with this status: check whether email is registered with the workspace. If status changed, and volunteer joined the workspace, then add to channels according to role entered and update status in the SlackPollingStatus  table to “done”.
 
-Both polling process and ui aproaches to the db_manager for service. Read/write of processes to DB must be synchronized to evoid connection failures, thus before each process approaches DB its running polling_ui_mutex which create lock file with the process name.
-As long as this file exist with process name the other processes can't read/write to DB.
+The Polling and UI processes interact with the same database, therefore we must synchronize them. To achieve that, each of the processes make use of a PollingUiMutex object which creates a lock file with the process name in it, thus making it re-entrant for the same process while making the other process wait until it gets deleted.
 
 __Link added to email via the invitation_link.json file. The link can be used by up to 2000 people. When the users cap of 2000 is exhausted a new link should be generated according to the below example:__
 
