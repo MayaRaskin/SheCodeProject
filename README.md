@@ -12,7 +12,7 @@ The goal of this project is to automate this process. Due to time constraints, t
 
 ## Setup instructions:
 1) Create a virtual environment (venv). Instruction on the following link: https://docs.python.org/3/library/venv.html
-2) install dependencies using: pip3 -r requirements.txt
+2) Install dependencies using: pip3 -r requirements.txt
 3) Run setup.py
 4) Run ui.py to add/update/view a volunteers
 5) Run slack_user_polling.py in background. This service should be left running in the background. It polls
