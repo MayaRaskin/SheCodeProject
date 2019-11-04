@@ -23,15 +23,15 @@ class UI(object):
         self.slack_api_helper = SlackApiHelper.create()
 
     def insert_new_volunteer(self):
-        volunteer = Volunteer(volunteer_id = self._volunteer_id, mail=self._mail, first_name=self._first_name, last_name=self._last_name, area=self._area, district=self._district, branch=self._branch, role=self._role)
+        volunteer = Volunteer(volunteer_id=self._volunteer_id, mail=self._mail, first_name=self._first_name, last_name=self._last_name, area=self._area, district=self._district, branch=self._branch, role=self._role)
         return self._db_manager.insert_volunteer(volunteer)
 
     def update_volunteer_data(self):
-        volunteer = Volunteer(volunteer_id = self._volunteer_id, mail=self._mail, first_name=self._first_name, last_name=self._last_name, area=self._area, district=self._district, branch=self._branch, role=self._role)
+        volunteer = Volunteer(volunteer_id=self._volunteer_id, mail=self._mail, first_name=self._first_name, last_name=self._last_name, area=self._area, district=self._district, branch=self._branch, role=self._role)
         return self._db_manager.update_volunteer_data(volunteer)
 
     def view_volunteer_data(self):
-        volunteer = Volunteer(volunteer_id = self._volunteer_id, mail=self._mail, first_name=self._first_name, last_name=self._last_name, area=self._area, district=self._district, branch=self._branch, role=self._role)
+        volunteer = Volunteer(volunteer_id=self._volunteer_id, mail=self._mail, first_name=self._first_name, last_name=self._last_name, area=self._area, district=self._district, branch=self._branch, role=self._role)
         return self._db_manager.view_volunteer_data(volunteer)
 
     def is_user_registered_to_slack_workspace(self, mail, volunteer_id):

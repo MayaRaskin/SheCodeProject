@@ -23,7 +23,7 @@ def main():
     slack_signing_secret = input("Enter slack_signing_secret")
     slack_user_token = input("Enter slack_user_token")
     source_mail = input("Enter source email for invitation to workspace")
-    google_app_pass = input("Enter goodle app password of email")
+    google_app_pass = input("Enter google app password of email")
     slack_link = input("Enter slack link to invite new volunteers to workspace")
     destination_mail = input("Enter email which get all emails send to new volunteer as BCC")
     create_json_of_slack_tokens(slack_signing_secret, slack_user_token)
