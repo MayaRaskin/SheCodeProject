@@ -6,3 +6,4 @@ credentials_gmail.json
 credentials_google_docs.json
 .idea
 venv
+__pycache__

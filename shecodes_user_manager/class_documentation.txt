@@ -1,0 +1,54 @@
+@startuml
+
+title Classes - Class Diagram
+
+
+class UI {
+  +void user_choose_table()
+  -bool insert_new_volunteer()
+  -bool is_user_registered_to_slack_workspace()
+  -void add_user_to_channels
+}
+
+class Slack_Api_Helper {
+  +bool is_mail_in_workspace()
+  -str _get_channel_id()
+  +void adding_member_to_channel()
+}
+
+class WorkspaceInvitation {
+  +void send_invitation_mail()
+  -void _build_mail_context() 
+}
+
+class DbManager {
+  +list get_slack_channels_for_volunteer()
+  -int role_to_role_id()
+  +void close_db()
+  +void insert_new_volunteer_to_slack_user_polling_table()
+  +list get_volunteer_to_check_new_status_on_slack()
+  +void update_slack_user_status()
+  -void get_location_id()
+  -int get_volunteer_data_id()
+  -void get_volunteer_data_id()
+  +bool insert_volunteer()
+}  
+
+class Volunteer {
+  +string volunteer_id()
+  +string mail()
+  +string first_name()
+  +string last_name()
+  +string area()
+  +string district()
+  +string branch()
+  +string role()
+  -string get_my_value()
+}
+
+class PollingUiMutex {
+  -void __init__()
+  -void __enter__()
+}
+
+@enduml
